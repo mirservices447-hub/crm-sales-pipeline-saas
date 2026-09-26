@@ -1,0 +1,20 @@
+import { redirect } from "next/navigation";
+import { Activity, Bell, CircleDollarSign, ContactRound, LayoutDashboard, Search, Settings, Target, UsersRound, CheckSquare, Building2, Mail, Phone } from "lucide-react";
+import { createClient } from "../../lib/supabase/server";
+import { logout } from "../auth/actions";
+
+const nav=[["Overview",LayoutDashboard,"/dashboard"],["Leads",ContactRound,"/dashboard#leads"],["Customers",UsersRound,"/customers"],["Deals",CircleDollarSign,"/deals"],["Tasks",CheckSquare,"#"],["Activity",Activity,"#"]] as const;
+
+export default async function CustomersPage({searchParams}:{searchParams?:{q?:string;converted?:string}}){
+ const supabase=createClient(); const {data:{user}}=await supabase.auth.getUser(); if(!user) redirect("/login");
+ const {data:profile}=await supabase.from("profiles").select("full_name,role").eq("id",user.id).single();
+ const q=(searchParams?.q||"").trim(); let query=supabase.from("customers").select("id,name,email,phone,company,created_at").order("created_at",{ascending:false});
+ if(q) query=query.or(`name.ilike.%${q}%,company.ilike.%${q}%,email.ilike.%${q}%`);
+ const [{data:customers},{count:leadCount}]=await Promise.all([query,supabase.from("leads").select("*",{count:"exact",head:true})]);
+ const name=profile?.full_name||user.email?.split("@")[0]||"User"; const initials=name.split(" ").map((x:string)=>x[0]).slice(0,2).join("").toUpperCase();
+ return <main className="crm-app"><aside className="crm-sidebar"><div className="crm-brand"><span><Target size={19}/></span><strong>Pipeline<i>OS</i></strong></div><nav>{nav.map(([label,Icon,href])=><a key={label} className={label==="Customers"?"active":""} href={href}><Icon size={18}/><span>{label}</span>{label==="Leads"&&<b>{leadCount||0}</b>}</a>)}</nav><div className="sidebar-bottom"><a href="#"><Settings size={18}/><span>Settings</span></a><div className="user-chip"><span>{initials}</span><div><strong>{name}</strong><small>{profile?.role||"sales"}</small></div></div></div></aside>
+ <section className="crm-content"><header className="crm-topbar"><form className="global-search" action="/customers"><Search size={17}/><input name="q" defaultValue={q} placeholder="Search customers, companies..."/><kbd>⌘ K</kbd></form><div className="top-actions"><button className="icon-button"><Bell size={18}/></button><form action={logout}><button className="text-button">Sign out</button></form></div></header>
+ <div className="crm-page"><div className="welcome-row"><div><span className="page-kicker">CUSTOMER RELATIONSHIPS</span><h1>Customers</h1><p>Qualified relationships converted from your sales pipeline.</p></div><div className="customer-total"><UsersRound size={18}/><strong>{customers?.length||0}</strong><span>Total customers</span></div></div>
+ {searchParams?.converted&&<div className="success-banner">Qualified lead converted successfully. Customer record created.</div>}
+ <section className="customer-grid">{customers?.length?customers.map((c:any)=><article className="customer-card" key={c.id}><div className="customer-card-top"><span className="customer-avatar">{c.name.slice(0,2).toUpperCase()}</span><span className="customer-status">Active</span></div><h2>{c.name}</h2><p><Building2 size={14}/>{c.company||"Independent customer"}</p><div className="customer-contact">{c.email&&<span><Mail size={13}/>{c.email}</span>}{c.phone&&<span><Phone size={13}/>{c.phone}</span>}</div><footer><span>Customer since</span><strong>{new Date(c.created_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</strong></footer></article>):<div className="customers-empty"><UsersRound size={28}/><h2>No customers yet</h2><p>Set a lead to Qualified, then use Convert to create the customer relationship.</p><a href="/dashboard#leads">Go to qualified leads</a></div>}</section></div></section></main>;
+}
