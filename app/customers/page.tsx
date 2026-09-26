@@ -3,7 +3,7 @@ import { Activity, Bell, CircleDollarSign, ContactRound, LayoutDashboard, Search
 import { createClient } from "../../lib/supabase/server";
 import { logout } from "../auth/actions";
 
-const nav=[["Overview",LayoutDashboard,"/dashboard"],["Leads",ContactRound,"/dashboard#leads"],["Customers",UsersRound,"/customers"],["Deals",CircleDollarSign,"#"],["Tasks",CheckSquare,"#"],["Activity",Activity,"#"]] as const;
+const nav=[["Overview",LayoutDashboard,"/dashboard"],["Leads",ContactRound,"/dashboard#leads"],["Customers",UsersRound,"/customers"],["Deals",CircleDollarSign,"/deals"],["Tasks",CheckSquare,"#"],["Activity",Activity,"#"]] as const;
 
 export default async function CustomersPage({searchParams}:{searchParams?:{q?:string;converted?:string}}){
  const supabase=createClient(); const {data:{user}}=await supabase.auth.getUser(); if(!user) redirect("/login");
