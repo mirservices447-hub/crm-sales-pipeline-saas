@@ -51,3 +51,36 @@ export async function deleteLead(formData: FormData) {
   if (id) await supabase.from("leads").delete().eq("id", id);
   revalidatePath("/dashboard");
 }
+
+
+export async function convertLeadToCustomer(formData: FormData) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const id = String(formData.get("id") || "");
+  if (!id) redirect("/dashboard?lead_error=Missing%20lead.");
+
+  const { data: lead, error: leadError } = await supabase
+    .from("leads")
+    .select("id,name,email,phone,company,status")
+    .eq("id", id)
+    .single();
+
+  if (leadError || !lead) redirect("/dashboard?lead_error=Lead%20not%20found.");
+  if (lead.status !== "qualified") redirect("/dashboard?lead_error=Only%20qualified%20leads%20can%20be%20converted.");
+
+  const { error: customerError } = await supabase.from("customers").insert({
+    owner_id: user.id,
+    name: lead.name,
+    email: lead.email,
+    phone: lead.phone,
+    company: lead.company,
+  });
+  if (customerError) redirect("/dashboard?lead_error=" + encodeURIComponent(customerError.message));
+
+  await supabase.from("leads").update({ status: "converted" }).eq("id", id);
+  revalidatePath("/dashboard");
+  revalidatePath("/customers");
+  redirect("/customers?converted=1");
+}
